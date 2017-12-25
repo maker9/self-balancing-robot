@@ -1,129 +1,91 @@
-#!/usr/bin/python
+#The recipe gives simple implementation of a Discrete Proportional-Integral-Derivative (PID) controller. PID controller gives output value for error between desired reference input and measurement feedback to minimize error value.
+#More information: http://en.wikipedia.org/wiki/PID_controller
 #
-# This file is part of IvPID.
-# Copyright (C) 2015 Ivmech Mechatronics Ltd. <bilgi@ivmech.com>
+#cnr437@gmail.com
 #
-# IvPID is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+#######	Example	#########
 #
-# IvPID is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+#p=PID(3.0,0.4,1.2)
+#p.setPoint(5.0)
+#while True:
+#     pid = p.update(measurement_value)
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
-# title           :PID.py
-# description     :python pid controller
-# author          :Caner Durmusoglu
-# date            :20151218
-# version         :0.1
-# notes           :
-# python_version  :2.7
-# ==============================================================================
-
-"""Ivmech PID Controller is simple implementation of a Proportional-Integral-Derivative (PID) Controller in the Python Programming Language.
-More information about PID Controller: http://en.wikipedia.org/wiki/PID_controller
-"""
-import time
 
 class PID:
-    """PID Controller
-    """
+	"""
+	Discrete PID control
+	"""
 
-    def __init__(self, P=0.2, I=0.0, D=0.0):
+	def __init__(self, P=2.0, I=0.0, D=1.0, Derivator=0, Integrator=0, Integrator_max=500, Integrator_min=-500):
 
-        self.Kp = P
-        self.Ki = I
-        self.Kd = D
+		self.Kp=P
+		self.Ki=I
+		self.Kd=D
+		self.Derivator=Derivator
+		self.Integrator=Integrator
+		self.Integrator_max=Integrator_max
+		self.Integrator_min=Integrator_min
 
-        self.sample_time = 0.00
-        self.current_time = time.time()
-        self.last_time = self.current_time
+		self.set_point=0.0
+		self.error=0.0
 
-        self.clear()
+	def update(self,current_value):
+		"""
+		Calculate PID output value for given reference input and feedback
+		"""
 
-    def clear(self):
-        """Clears PID computations and coefficients"""
-        self.SetPoint = 0.0
+		self.error = self.set_point - current_value
 
-        self.PTerm = 0.0
-        self.ITerm = 0.0
-        self.DTerm = 0.0
-        self.last_error = 0.0
+		self.P_value = self.Kp * self.error
+		self.D_value = self.Kd * ( self.error - self.Derivator)
+		self.Derivator = self.error
 
-        # Windup Guard
-        self.int_error = 0.0
-        self.windup_guard = 20.0
+		self.Integrator = self.Integrator + self.error
 
-        self.output = 0.0
+		if self.Integrator > self.Integrator_max:
+			self.Integrator = self.Integrator_max
+		elif self.Integrator < self.Integrator_min:
+			self.Integrator = self.Integrator_min
 
-    def update(self, feedback_value):
-        """Calculates PID value for given reference feedback
+		self.I_value = self.Integrator * self.Ki
 
-        .. math::
-            u(t) = K_p e(t) + K_i \int_{0}^{t} e(t)dt + K_d {de}/{dt}
+		PID = self.P_value + self.I_value + self.D_value
 
-        .. figure:: images/pid_1.png
-           :align:   center
+		return PID
 
-           Test PID with Kp=1.2, Ki=1, Kd=0.001 (test_pid.py)
+	def setPoint(self,set_point):
+		"""
+		Initilize the setpoint of PID
+		"""
+		self.set_point = set_point
+		self.Integrator=0
+		self.Derivator=0
 
-        """
-        error = self.SetPoint - feedback_value
+	def setIntegrator(self, Integrator):
+		self.Integrator = Integrator
 
-        self.current_time = time.time()
-        delta_time = self.current_time - self.last_time
-        delta_error = error - self.last_error
+	def setDerivator(self, Derivator):
+		self.Derivator = Derivator
 
-        if (delta_time >= self.sample_time):
-            self.PTerm = self.Kp * error
-            self.ITerm += error * delta_time
+	def setKp(self,P):
+		self.Kp=P
 
-            if (self.ITerm < -self.windup_guard):
-                self.ITerm = -self.windup_guard
-            elif (self.ITerm > self.windup_guard):
-                self.ITerm = self.windup_guard
+	def setKi(self,I):
+		self.Ki=I
 
-            self.DTerm = 0.0
-            if delta_time > 0:
-                self.DTerm = delta_error / delta_time
+	def setKd(self,D):
+		self.Kd=D
 
-            # Remember last time and last error for next calculation
-            self.last_time = self.current_time
-            self.last_error = error
+	def getPoint(self):
+		return self.set_point
 
-            self.output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
+	def getError(self):
+		return self.error
 
-    def setKp(self, proportional_gain):
-        """Determines how aggressively the PID reacts to the current error with setting Proportional Gain"""
-        self.Kp = proportional_gain
+	def getIntegrator(self):
+		return self.Integrator
 
-    def setKi(self, integral_gain):
-        """Determines how aggressively the PID reacts to the current error with setting Integral Gain"""
-        self.Ki = integral_gain
-
-    def setKd(self, derivative_gain):
-        """Determines how aggressively the PID reacts to the current error with setting Derivative Gain"""
-        self.Kd = derivative_gain
-
-    def setWindup(self, windup):
-        """Integral windup, also known as integrator windup or reset windup,
-        refers to the situation in a PID feedback controller where
-        a large change in setpoint occurs (say a positive change)
-        and the integral terms accumulates a significant error
-        during the rise (windup), thus overshooting and continuing
-        to increase as this accumulated error is unwound
-        (offset by errors in the other direction).
-        The specific problem is the excess overshooting.
-        """
-        self.windup_guard = windup
-
-    def setSampleTime(self, sample_time):
-        """PID that should be updated at a regular interval.
-        Based on a pre-determined sampe time, the PID decides if it should compute or return immediately.
-        """
-        self.sample_time = sample_time
+	def getDerivator(self):
+		return self.Derivator
